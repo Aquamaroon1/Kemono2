@@ -1,37 +1,38 @@
+from flask import Blueprint, g, request, make_response, render_template, abort
+# from datetime import datetime
+
+from src.lib.administrator import get_account, get_accounts, change_account_role
+from src.lib.account import load_account
+from src.lib.pagination import Pagination
+
 from typing import List
-from flask import Blueprint, request, make_response, render_template, abort
-from datetime import datetime
+from src.types.account import Account, visible_roles
+from .types import Dashboard, Accounts, Role_Change
 
-from ..lib.administrator import get_account, get_accounts, change_account_role
-from ..lib.account import load_account
-from ..lib.pagination import Pagination
-
-from ..types.account import visible_roles
-from .admin_types import admin_props
-
-admin = Blueprint(
+administrator = Blueprint(
     'admin',
-    __name__
+    __name__,
 )
 
-@admin.before_request
+@administrator.before_request
 def check_credentials():
     account = load_account()
-    if (not account or account['role'] != 'administrator'):
+    if (not account or account["role"] != 'administrator'):
         return abort(404)
+    
 
-@admin.route('/admin')
+@administrator.get('/administrator')
 def get_admin():
-    props = admin_props.Dashboard()
+    props = Dashboard()
 
     response = make_response(render_template(
-        'admin/dashboard.html',
+        'account/administrator/dashboard.html',
         props = props,
     ), 200)
     response.headers['Cache-Control'] = 's-maxage=60'
     return response
 
-@admin.get('/admin/accounts')
+@administrator.get('/administrator/accounts')
 def get_accounts_list():
     queries = request.args.to_dict()
     queries['name'] = queries.get('name') if queries.get('name') else None
@@ -44,33 +45,40 @@ def get_accounts_list():
 
     pagination = Pagination(request)
     accounts = get_accounts(pagination, queries)
-    props = admin_props.Accounts(
+    props = Accounts(
         accounts= accounts,
         role_list= visible_roles,
         pagination= pagination
     )
 
     response = make_response(render_template(
-        'admin/accounts.html',
+        'account/administrator/accounts.html',
         props = props,
     ), 200)
     response.headers['Cache-Control'] = 's-maxage=60'
     return response
 
-@admin.post('/admin/accounts')
+@administrator.post('/administrator/accounts')
 def change_account_roles():
     form_dict = request.form.to_dict(flat=False)
     candidates = {
-        "moderator": convert_ids_to_int(form_dict.get('moderator')),
-        "consumer": convert_ids_to_int(form_dict.get('consumer'))
+        # convert ids to `int`
+        'moderator': [int(id) for id in form_dict.get('moderator')] if form_dict.get('moderator') else [],
+        'consumer': [int(id) for id in form_dict.get('consumer')] if form_dict.get('consumer') else []
     }
 
-    # TODO: Change this line here and use the function as you see fit for this
-    change_account_role(candidates["moderator"], 'moderator', None)
-    props = {
-        'currentPage': 'admin',
-        'redirect': f"/admin/accounts"
-    }
+    if len(candidates['moderator']):
+        change_account_role(candidates['moderator'], 'moderator', {
+            'old_role': 'consumer',
+            'new_role': 'moderator'
+        })
+    if len(candidates["consumer"]):
+        change_account_role(candidates['consumer'], 'consumer', {
+            'old_role': 'moderator',
+            'new_role': 'consumer'
+        })
+
+    props = Role_Change()
 
     response = make_response(render_template(
         'success.html',
@@ -136,7 +144,3 @@ def change_account_roles():
 #     ), 200)
 #     response.headers['Cache-Control'] = 's-maxage=60'
 #     return response
-
-def convert_ids_to_int(list: List[str]):
-    if list and len(list) != 0:
-        return [int(item) for item in list]

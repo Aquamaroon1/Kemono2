@@ -1,5 +1,6 @@
 from os import getenv
 from flask import g, current_app
+from threading import Lock
 import psycopg2
 from psycopg2 import pool
 from psycopg2.pool import ThreadedConnectionPool
@@ -9,6 +10,7 @@ from typing import Optional
 from psycopg2.extensions import cursor
 
 pool: Optional[ThreadedConnectionPool] = None
+connection_lock = Lock()
 
 def init():
     global pool

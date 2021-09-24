@@ -3,6 +3,7 @@ import datetime
 from datetime import timedelta
 from os import getenv
 from os.path import join, dirname
+from threading import Lock
 from urllib.parse import urljoin
 
 import logging
@@ -28,8 +29,6 @@ from src.pages.dms import dms
 from src.pages.favorites import favorites
 from src.pages.help import help_app
 from src.pages.importer import importer_page
-from src.pages.admin import admin
-from src.pages.moderator import moderator
 
 app = Flask(
     __name__,
@@ -45,8 +44,6 @@ app.register_blueprint(artists)
 app.register_blueprint(random)
 app.register_blueprint(post)
 app.register_blueprint(account)
-app.register_blueprint(admin)
-app.register_blueprint(moderator)
 app.register_blueprint(favorites)
 app.register_blueprint(dms)
 app.register_blueprint(help_app, url_prefix='/help')
